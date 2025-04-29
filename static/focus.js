@@ -1,41 +1,60 @@
 const API = {
     organizationList: "/orgsList",
-    analytics: "/api3/analytics",
+    analytics: "/analitics",
     orgReqs: "/api3/reqBase",
     buhForms: "/api3/buh",
 };
 
-function run() {
-    sendRequest(API.organizationList, (orgOgrns) => {
+async function run() {
+    try {
+        const orgOgrns = await sendRequest(API.organizationList);
         const ogrns = orgOgrns.join(",");
-        sendRequest(`${API.orgReqs}?ogrn=${ogrns}`, (requisites) => {
-            const orgsMap = reqsToMap(requisites);
-            sendRequest(`${API.analytics}?ogrn=${ogrns}`, (analytics) => {
-                addInOrgsMap(orgsMap, analytics, "analytics");
-                sendRequest(`${API.buhForms}?ogrn=${ogrns}`, (buh) => {
-                    addInOrgsMap(orgsMap, buh, "buhForms");
-                    render(orgsMap, orgOgrns);
-                });
-            });
-        });
-    });
+
+        const requisites = await sendRequest(`${API.orgReqs}?ogrn=${ogrns}`);
+        const orgsMap = reqsToMap(requisites);
+
+        try {
+            const analytics = await sendRequest(`${API.analytics}?ogrn=${ogrns}`);
+            addInOrgsMap(orgsMap, analytics, "analytics");
+        } catch (error) {
+            console.error("Не удалось загрузить аналитику:", error.message);
+        }
+
+        try {
+            const buh = await sendRequest(`${API.buhForms}?ogrn=${ogrns}`);
+            addInOrgsMap(orgsMap, buh, "buhForms");
+        } catch (error) {
+            console.error("Не удалось загрузить бухформы:", error.message);
+        }
+
+        render(orgsMap, orgOgrns);
+    } catch (error) {
+        console.error("Критическая ошибка:", error.message);
+    }
 }
 
 run();
 
-function sendRequest(url, callback) {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-                callback(JSON.parse(xhr.response));
-            }
+async function sendRequest(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorInfo = {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url
+            };
+            alert(`Ошибка запроса:\nURL: ${errorInfo.url}\nСтатус: ${errorInfo.status} ${errorInfo.statusText}`);
+            throw new Error(`HTTP error: ${errorInfo.status} ${errorInfo.statusText}`);
         }
-    };
-
-    xhr.send();
+        return await response.json();
+    } catch (error) {
+        if (error instanceof TypeError) {
+            alert(`Сетевая ошибка: ${error.message}\nПроверьте URL: ${url}`);
+            throw new Error(`Network error: ${error.message}`);
+        }
+        throw error;
+    }
 }
 
 function reqsToMap(requisites) {
