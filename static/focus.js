@@ -13,18 +13,30 @@ async function run() {
         const requisites = await sendRequest(`${API.orgReqs}?ogrn=${ogrns}`);
         const orgsMap = reqsToMap(requisites);
 
-        try {
-            const analytics = await sendRequest(`${API.analytics}?ogrn=${ogrns}`);
-            addInOrgsMap(orgsMap, analytics, "analytics");
-        } catch (error) {
-            console.error("Не удалось загрузить аналитику:", error.message);
-        }
+        const [analyticsResult, buhResult] = await Promise.all([
+            (async () => {
+                try {
+                    return await sendRequest(`${API.analytics}?ogrn=${ogrns}`);
+                } catch (error) {
+                    console.error("Не удалось загрузить аналитику:", error.message);
+                    return null;
+                }
+            })(),
+            (async () => {
+                try {
+                    return await sendRequest(`${API.buhForms}?ogrn=${ogrns}`);
+                } catch (error) {
+                    console.error("Не удалось загрузить бухформы:", error.message);
+                    return null;
+                }
+            })()
+        ]);
 
-        try {
-            const buh = await sendRequest(`${API.buhForms}?ogrn=${ogrns}`);
-            addInOrgsMap(orgsMap, buh, "buhForms");
-        } catch (error) {
-            console.error("Не удалось загрузить бухформы:", error.message);
+        if (analyticsResult) {
+            addInOrgsMap(orgsMap, analyticsResult, "analytics");
+        }
+        if (buhResult) {
+            addInOrgsMap(orgsMap, buhResult, "buhForms");
         }
 
         render(orgsMap, orgOgrns);
@@ -32,8 +44,6 @@ async function run() {
         console.error("Критическая ошибка:", error.message);
     }
 }
-
-run();
 
 async function sendRequest(url) {
     try {
@@ -151,3 +161,5 @@ function createAddress(address) {
         return `${address[key].topoShortName}. ${address[key].topoValue}`;
     }
 }
+
+run();
