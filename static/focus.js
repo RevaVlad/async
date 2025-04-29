@@ -1,6 +1,6 @@
 const API = {
     organizationList: "/orgsList",
-    analytics: "/analitics",
+    analytics: "/analytics",
     orgReqs: "/api3/reqBase",
     buhForms: "/api3/buh",
 };
